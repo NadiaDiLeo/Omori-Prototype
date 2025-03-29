@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interfaccia Interattiva Omori</title>
+  <style>
+    @font-face {
+      font-family: 'OmoriFont';
+      src: url('OMORI_GAME2.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+    
+    body {
+      font-family: 'OmoriFont', sans-serif;
+      margin: 0;
+      padding: 0;
+      background-image: url('images/background.png');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      color: white;
+    }
+    
+    /* Container ingrandito e invisibile */
+    #container {
+      position: relative;
+      width: 800px;
+      height: 800px;
+      background-color: transparent;
+      border: none;
+      cursor: pointer;
+      overflow: visible;
+      margin: 20px auto;
+    }
+    
+    /* Omori centrale ingrandito */
+    .big-omori {
+      position: absolute;
+      width: 400px;
+      height: auto;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 5;
+    }
+    
+    .bubble {
+      position: absolute;
+      background: #000000;
+      border: 2px solid #ffffff;
+      border-radius: 3px;
+      padding: 15px;
+      max-width: 220px;
+      font-size: 1em;
+      z-index: 10;
+      color: white;
+      box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
+    }
+    
+    .comment-container {
+      position: absolute;
+      z-index: 10;
+    }
+    
+    /* Animazioni di slide */
+    @keyframes slideFromRight {
+      from { transform: translateX(100px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    
+    @keyframes slideFromLeft {
+      from { transform: translateX(-100px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    
+    .slide-right {
+      animation: slideFromRight 0.8s ease-out forwards;
+    }
+    
+    .slide-left {
+      animation: slideFromLeft 0.8s ease-out forwards;
+    }
+    
+    /* Personaggi nei commenti ingranditi e senza bordo/cerchio */
+    .comment-img {
+      position: absolute;
+      width: 200px;
+      height: 200px;
+      border: none;
+      border-radius: 0;
+      object-fit: cover;
+      z-index: 11;
+    }
+    
+    /* Posizione per i personaggi a destra */
+    .comment-container:not(.left) .comment-img {
+      left: 0;
+    }
+    
+    /* Posizione per i personaggi a sinistra */
+    .comment-container.left .comment-img {
+      right: 0;
+    }
+    
+    .comment-bubble {
+      position: absolute;
+      background: #000000;
+      border: 2px solid #ffffff;
+      border-radius: 3px;
+      padding: 15px;
+      width: 200px;
+      font-size: 1em;
+      color: white;
+      box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
+    }
+    
+    /* Posizione per le bolle a destra */
+    .comment-container:not(.left) .comment-bubble {
+      left: 210px;
+    }
+    
+    /* Posizione per le bolle a sinistra */
+    .comment-container.left .comment-bubble {
+      right: 210px;
+    }
+    
+    .character-name {
+      position: absolute;
+      top: -30px;
+      left: 0;
+      background: #000000;
+      border: 2px solid #ffffff;
+      padding: 2px 8px;
+      font-size: 0.9em;
+      color: white;
+      text-transform: uppercase;
+      font-weight: bold;
+    }
+    
+    .typing-text {
+      display: inline;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <!-- Added audio element with reinforced loop functionality -->
+  <audio id="backgroundMusic" autoplay loop preload="auto">
+    <source src="soundtrack.mp3" type="audio/mp3">
+    Your browser does not support the audio element.
+  </audio>
+  
+  <div id="container">
+    <!-- Immagine principale: Omori grande -->
+    <img id="bigOmori" src="images/omoriknife.gif" alt="Omori Knife" class="big-omori">
+  </div>
+
+
+
+
+  <script>
+    // Ensure soundtrack loops by adding event listeners
+    const backgroundMusic = document.getElementById('backgroundMusic');
+    
+    // Ensure audio loops properly with JavaScript backup
+    backgroundMusic.loop = true;
+    
+    // Additional event listener to ensure looping works
+    backgroundMusic.addEventListener('ended', function() {
+      this.currentTime = 0;
+      this.play();
+    }, false);
+    
+    // Try to play audio when page loads
+    window.addEventListener('load', function() {
+      backgroundMusic.play().catch(function(error) {
+        console.log("Audio autoplay was prevented. User interaction needed.");
+      });
+    });
+    
+    // Make sure the audio plays when user interacts with the page
+    document.addEventListener('click', function() {
+      if (backgroundMusic.paused) {
+        backgroundMusic.play();
+      }
+    });
+    
+    // Dati per i post e relativi commenti
+    const posts = [
+      {
+        post: "I truly think this game might have saved my life? I feel so weird saying that. I feel like I'm being dramatic but the more I think about it, the more real it feels and I just need to talk about it. I just beat Omori for the first time on the sunny route. Although I won't go into detail bc it doesn't matter much, for a bit of context, I am a veteran who has PTSD surrounding deaths, as well as related amnesia, anxiety, and depression...",
+        comments: [
+          "I'm so proud of you for recognizing that you've been staying in a \"white space\" of your own and that you'll need to open the door. I wish you all the best!",
+          "Good job man",
+          "You're not alone. I also have severe PTSD (Although I'm not a veteran) and playing Omori was like watching a visual novel for my mental health struggles play out. The hallucinations, fleeting moments of happiness that are quickly dissipated by the trauma and guilt...",
+          "hell yeah",
+          "how ya doin soldier?",
+          "It saved a lot of lives..."
+        ]
+      },
+      {
+        post: "I'm scared of playing this game due to similarities with my own life. Should I go for it or just sell? Hey all, I bought this game during a time in my life where I was... \"happier\". The year 2023 was the worst year of my life and I now find myself undergoing major lifestyle changes. I also underwent therapy and was being treated for depression and anxiety...",
+        comments: [
+          "Honestly,if you don't feel confortable doing so,you don't have to play it,do what's best for your mental health. Your mental health is way more important than just some Indie RPG.",
+          "The game is more about mending those wounds and overcoming the feelings of self doubt, etc. so it does have a positive narrative. It doesn't hold any punches though and gets pretty real. It's hard to say if it\'s a good call to play it or not. Something that might help for me to judge a bit better is, has any other game or story of any kind affected you to such a degree that you wish you didn't experience it?",
+          "Everyone's different. I'm also similar to Omori, with the whole isolation thing, and the game made me feel like I was understood. I can understand if others would not react the same though..."
+        ]
+      },
+      {
+        post: "... ughhh... I'm genuinely about to go into another panic attack. I'm scared, I'm sad, and... I just want Mari alive. She was the one... the ONE character I did not want to see die. I swear to you, it always works out that way for me...What was the point of this post...? I really don't know... I feel like I have been bouncing all over the place in terms of topics while writing this for the past hour... I hope this post didn't upset anybody. Have a lovely day/night... <333 Thank you for reading this regardless, and I love you all.",
+        comments: [
+          "Would ya like a hug?",
+          "Alrighty then, 'Mari lives' Fanfics coming up! First up, we have Mari, Your Beloved, very cutsey stuff. Another one that's fun is The Wonderful Life of Sunny. Slightly less happy is The Sun Shines Brighter, but it's still pretty nice.",
+          "...I hope those dreams will let up a bit, or you know, turn a bit more pleasant.",
+          "Hey, it's me, author of the shameless \"Picnic with Mari.\" Thanks for all your kind words on AO3. I totally understand wanting everything to be truly okay (as I'm sure you gathered from the fic). Hopefully all the other recommendations will also be helpful to you. I wish you the best of luck coping not only with OMORI but with real life as well.",
+          "I can't promise I'll be very helpful in any way, but yes, you may message me if you'd like.",
+          "Overall, it sounds like you probably should've taken the advice of that acquaintance and not sought out the game… There is plenty of fanart of happy Mari, of Mari/Sunny role reversal, of alternate timelines/scenarios…the OMORI community is quite creative. Just browse this sub and you'll find what you're looking for..."
+        ]
+      }
+      
+    ];
+    
+    // Nomi dei personaggi per i commenti (aggiunti AUBREY e BASIL)
+    const characterNames = ["KEL", "HERO", "MARI", "KEL", "AUBREY", "BASIL"];
+    
+    // Nuove posizioni per i commenti (più distanti dal centro)
+    const commentPositions = [
+      { top: "10%", left: "50%" },  // ingresso centrale in alto
+      { top: "40%", left: "69%" },  // a destra in alto
+      { top: "70%", left: "50%" },  // a destra in basso
+      { top: "70%", left: "30%" },  // in basso centrale
+      { top: "40%", left: "23%" },  // a sinistra in basso
+      { top: "10%", left: "30%" }   // a sinistra in alto
+    ];
+    
+    // Array di gif per i personaggi nei commenti (aggiunti aubrey.gif e basil.gif)
+    const commentGifs = [
+      "kelbackflip.gif",
+      "herogun.gif",
+      "mari2.gif",
+      "kelbroken.gif",
+      "aubrey.gif",     // Nuova GIF aggiunta
+      "basil.gif"       // Nuova GIF aggiunta
+    ];
+    
+    let currentPostIndex = 0;
+    let currentCommentIndex = 0;
+    let state = "ready";
+    let typingInProgress = false;
+    
+    const container = document.getElementById("container");
+    const bigOmori = document.getElementById("bigOmori");
+    
+    let postBubbleElement = null;
+    
+    // Funzione per effetto macchina da scrivere
+    function typeText(element, text, index = 0, callback) {
+      if (index < text.length) {
+        typingInProgress = true;
+        element.textContent = text.substring(0, index + 1);
+        setTimeout(() => {
+          typeText(element, text, index + 1, callback);
+        }, 30); // Velocità di battitura
+      } else {
+        typingInProgress = false;
+        if (callback) callback();
+      }
+    }
+    
+    function showPost() {
+      const currentPost = posts[currentPostIndex];
+      postBubbleElement = document.createElement("div");
+      postBubbleElement.classList.add("bubble");
+      postBubbleElement.style.top = "calc(30% - 120px)";
+      postBubbleElement.style.left = "50%";
+      postBubbleElement.style.transform = "translateX(-50%)";
+      
+      // Aggiungi il nome OMORI alla bolla di testo
+      const nameLabel = document.createElement("div");
+      nameLabel.classList.add("character-name");
+      nameLabel.textContent = "OMORI";
+      postBubbleElement.appendChild(nameLabel);
+      
+      // Contenitore per il testo con effetto macchina da scrivere
+      const textElement = document.createElement("div");
+      textElement.classList.add("typing-text");
+      postBubbleElement.appendChild(textElement);
+      
+      container.appendChild(postBubbleElement);
+      
+      // Avvia l'effetto macchina da scrivere
+      typeText(textElement, currentPost.post);
+    }
+    
+    function addComment(commentText) {
+      const commentContainer = document.createElement("div");
+      commentContainer.classList.add("comment-container");
+      
+      // Aggiungi la classe "left" per i commenti 4, 5 e 6 (indici 3, 4, 5)
+      if (currentCommentIndex >= 3) {
+        commentContainer.classList.add("left");
+        commentContainer.classList.add("slide-left"); // Aggiungi slide da sinistra
+      } else {
+        commentContainer.classList.add("slide-right"); // Aggiungi slide da destra
+      }
+    
+      const pos = commentPositions[currentCommentIndex % commentPositions.length];
+      commentContainer.style.top = pos.top;
+      commentContainer.style.left = pos.left;
+      
+      // Crea la parte grafica del commento
+      const commentImg = document.createElement("img");
+      // Seleziona ciclicamente la gif del personaggio per il commento
+      const gifIndex = currentCommentIndex % commentGifs.length;
+      commentImg.src = "images/" + commentGifs[gifIndex];
+      commentImg.alt = "Comment Character";
+      commentImg.classList.add("comment-img");
+    
+      const commentBubble = document.createElement("div");
+      commentBubble.classList.add("comment-bubble");
+      
+      // Aggiungi il nome del personaggio
+      const nameLabel = document.createElement("div");
+      nameLabel.classList.add("character-name");
+      nameLabel.textContent = characterNames[gifIndex];
+      commentBubble.appendChild(nameLabel);
+      
+      // Contenitore per il testo con effetto macchina da scrivere
+      const textElement = document.createElement("div");
+      textElement.classList.add("typing-text");
+      commentBubble.appendChild(textElement);
+      
+      commentContainer.appendChild(commentImg);
+      commentContainer.appendChild(commentBubble);
+      container.appendChild(commentContainer);
+      
+      // Avvia l'effetto macchina da scrivere
+      typeText(textElement, commentText);
+      
+      currentCommentIndex++;
+    }
+    
+    function resetContainer() {
+      const children = Array.from(container.children);
+      children.forEach(child => {
+        if (child.id !== "bigOmori") {
+          container.removeChild(child);
+        }
+      });
+      currentCommentIndex = 0;
+    }
+    
+    container.addEventListener("click", function(){
+      // Se è in corso la battitura, attendere che finisca
+      if (typingInProgress) {
+        return;
+      }
+      
+      if (currentPostIndex >= posts.length) {
+        alert("Hai visualizzato tutti i post e commenti!");
+        return;
+      }
+    
+      if (state === "ready") {
+        showPost();
+        state = "postDisplayed";
+      } else if (state === "postDisplayed") {
+        if (postBubbleElement) {
+          container.removeChild(postBubbleElement);
+          postBubbleElement = null;
+        }
+        const currentPost = posts[currentPostIndex];
+        if (currentPost.comments.length > 0) {
+          addComment(currentPost.comments[0]);
+          state = "commentInProgress";
+        } else {
+          currentPostIndex++;
+          resetContainer();
+          state = "ready";
+        }
+      } else if (state === "commentInProgress") {
+        const currentPost = posts[currentPostIndex];
+        if (currentCommentIndex < currentPost.comments.length) {
+          addComment(currentPost.comments[currentCommentIndex]);
+        } else {
+          currentPostIndex++;
+          resetContainer();
+          state = "ready";
+        }
+      }
+    });
+  </script>
+</body>
+</html>
