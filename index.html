@@ -71,7 +71,6 @@
       color: white;
       box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
       text-align: left;
-      /* --- MODIFIED: Fixed size and larger font --- */
       width: 300px;
       height: 200px;
       font-size: 1.5em;
@@ -130,7 +129,6 @@
       color: white;
       box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
       text-align: left;
-      /* --- MODIFIED: Fixed size and larger font --- */
       width: 250px;
       height: 150px;
       font-size: 1.5em;
@@ -192,7 +190,9 @@
     document.addEventListener('click', () => { if (backgroundMusic.paused) backgroundMusic.play(); });
 
     // --- CONFIGURATION & CONSTANTS ---
-    const CHARS_PER_PAGE = 70; // Tweak this value to change text amount per page
+    // MODIFIED: Separate character limits for post and comments
+    const POST_CHARS_PER_PAGE = 100;
+    const COMMENT_CHARS_PER_PAGE = 70; 
     const characterNames = ["KEL", "HERO", "MARI", "KEL", "AUBREY", "BASIL"];
     const commentPositions = [
       { top: "10%", left: "50%" }, { top: "40%", left: "69%" }, { top: "70%", left: "50%" },
@@ -207,9 +207,9 @@
     let allPosts = [];
     let currentPostIndex = 0;
     let currentCommentIndex = 0;
-    let currentPostPage = 0; // NEW: Tracks current page of the post
-    let currentCommentPage = 0; // NEW: Tracks current page of the comment
-    let state = "ready"; // Can be: ready, postInProgress, commentInProgress
+    let currentPostPage = 0;
+    let currentCommentPage = 0;
+    let state = "ready";
     let typingInProgress = false;
     
     const container = document.getElementById("container");
@@ -220,10 +220,15 @@
       fetch('omori_posts.json')
         .then(response => response.json())
         .then(data => {
-          allPosts = data.map(post => ({
-              post: `${post.title}\n\n${post.selftext || ''}`.trim(),
-              comments: post.comments.map(comment => comment.body)
-          }));
+          allPosts = data.map(post => {
+            // MODIFIED: Clean text by removing extra newlines
+            const cleanText = (text) => text.replace(/\n{2,}/g, '\n').trim();
+            
+            const postContent = cleanText(`${post.title}\n\n${post.selftext || ''}`);
+            const comments = post.comments.map(comment => cleanText(comment.body));
+
+            return { post: postContent, comments: comments };
+          });
           populatePostSelector();
         })
         .catch(error => {
@@ -237,7 +242,7 @@
       allPosts.forEach((postData, index) => {
         const option = document.createElement('option');
         option.value = index;
-        const title = postData.post.split('\n\n')[0];
+        const title = postData.post.split('\n')[0];
         option.textContent = title.length > 80 ? title.substring(0, 80) + '...' : title;
         postSelector.appendChild(option);
       });
@@ -254,7 +259,7 @@
       if (index < text.length) {
         typingInProgress = true;
         element.textContent = text.substring(0, index + 1);
-        setTimeout(() => typeText(element, text, index + 1, callback), 10); // MODIFIED: Faster typing
+        setTimeout(() => typeText(element, text, index + 1, callback), 5);
       } else {
         typingInProgress = false;
         if (callback) callback();
@@ -262,16 +267,14 @@
     }
     
     function showPost() {
-      // Clear any previous post bubble
       const existingBubble = document.querySelector('.bubble');
       if (existingBubble) container.removeChild(existingBubble);
 
       const currentPost = allPosts[currentPostIndex];
-      const start = currentPostPage * CHARS_PER_PAGE;
-      let textToShow = currentPost.post.substring(start, start + CHARS_PER_PAGE);
+      const start = currentPostPage * POST_CHARS_PER_PAGE;
+      let textToShow = currentPost.post.substring(start, start + POST_CHARS_PER_PAGE);
 
-      // Check if there's more text to show on the next page
-      if (start + CHARS_PER_PAGE < currentPost.post.length) {
+      if (start + POST_CHARS_PER_PAGE < currentPost.post.length) {
         textToShow += "... (click to continue)";
       }
 
@@ -298,21 +301,20 @@
       const currentPost = allPosts[currentPostIndex];
       const commentText = currentPost.comments[currentCommentIndex];
 
-      const start = currentCommentPage * CHARS_PER_PAGE;
-      let textToShow = commentText.substring(start, start + CHARS_PER_PAGE);
+      const start = currentCommentPage * COMMENT_CHARS_PER_PAGE;
+      let textToShow = commentText.substring(start, start + COMMENT_CHARS_PER_PAGE);
 
-      if (start + CHARS_PER_PAGE < commentText.length) {
+      if (start + COMMENT_CHARS_PER_PAGE < commentText.length) {
           textToShow += "... (click to continue)";
       }
 
-      // Clear the specific comment we might be re-drawing
       const positionIndex = currentCommentIndex % commentPositions.length;
       const existingCommentContainer = document.querySelector(`.comment-container[data-position-index='${positionIndex}']`);
       if (existingCommentContainer) container.removeChild(existingCommentContainer);
 
       const commentContainer = document.createElement("div");
       commentContainer.classList.add("comment-container");
-      commentContainer.dataset.positionIndex = positionIndex; // For easy selection later
+      commentContainer.dataset.positionIndex = positionIndex;
 
       if (positionIndex >= 3) commentContainer.classList.add("left", "slide-left");
       else commentContainer.classList.add("slide-right");
@@ -373,12 +375,11 @@
         state = "postInProgress";
 
       } else if (state === "postInProgress") {
-        const hasMorePostText = (currentPostPage + 1) * CHARS_PER_PAGE < currentPostData.post.length;
+        const hasMorePostText = (currentPostPage + 1) * POST_CHARS_PER_PAGE < currentPostData.post.length;
         if (hasMorePostText) {
           currentPostPage++;
           showPost();
         } else {
-          // Post finished, move to comments
           resetContainer();
           if (currentPostData.comments.length > 0) {
             currentCommentIndex = 0;
@@ -386,30 +387,26 @@
             addComment();
             state = "commentInProgress";
           } else {
-            // No comments, go back to ready state
             state = "ready";
           }
         }
       } else if (state === "commentInProgress") {
         const currentCommentText = currentPostData.comments[currentCommentIndex];
-        const hasMoreCommentText = (currentCommentPage + 1) * CHARS_PER_PAGE < currentCommentText.length;
+        const hasMoreCommentText = (currentCommentPage + 1) * COMMENT_CHARS_PER_PAGE < currentCommentText.length;
         
         if (hasMoreCommentText) {
           currentCommentPage++;
           addComment();
         } else {
-          // Current comment finished, move to next comment
           currentCommentIndex++;
           currentCommentPage = 0;
 
           if (currentCommentIndex < currentPostData.comments.length) {
-            // If we've shown 6 comments, clear the screen for the next batch
             if (currentCommentIndex > 0 && currentCommentIndex % 6 === 0) {
               resetContainer();
             }
             addComment();
           } else {
-            // All comments finished for this post
             resetForNewPost();
           }
         }
