@@ -21,10 +21,9 @@
       background-position: center;
       background-repeat: no-repeat;
       color: white;
-      text-align: center; /* Center content like the selector */
+      text-align: center;
     }
 
-    /* --- NEW STYLES FOR POST SELECTOR --- */
     #selector-container {
       padding: 20px;
       background-color: rgba(0, 0, 0, 0.5);
@@ -40,7 +39,6 @@
       min-width: 400px;
       max-width: 80%;
     }
-    /* --- END OF NEW STYLES --- */
     
     #container {
       position: relative;
@@ -69,12 +67,16 @@
       border: 2px solid #ffffff;
       border-radius: 3px;
       padding: 15px;
-      max-width: 220px;
-      font-size: 1em;
       z-index: 10;
       color: white;
       box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
-      text-align: left; /* Keep text in bubbles left-aligned */
+      text-align: left;
+      /* --- MODIFIED: Fixed size and larger font --- */
+      width: 300px;
+      height: 200px;
+      font-size: 1.1em;
+      overflow: hidden;
+      box-sizing: border-box;
     }
     
     .comment-container {
@@ -124,11 +126,15 @@
       border: 2px solid #ffffff;
       border-radius: 3px;
       padding: 15px;
-      width: 200px;
-      font-size: 1em;
       color: white;
       box-shadow: 4px 4px 0px rgba(0, 0, 0, 0.5);
-      text-align: left; /* Keep text in bubbles left-aligned */
+      text-align: left;
+      /* --- MODIFIED: Fixed size and larger font --- */
+      width: 250px;
+      height: 150px;
+      font-size: 1.1em;
+      overflow: hidden;
+      box-sizing: border-box;
     }
     
     .comment-container:not(.left) .comment-bubble {
@@ -164,7 +170,6 @@
     Your browser does not support the audio element.
   </audio>
   
-  <!-- NEW: Container for the post selector -->
   <div id="selector-container">
     <label for="postSelector">Choose a Post:</label>
     <select id="postSelector">
@@ -180,108 +185,74 @@
     // --- AUDIO HANDLING (Unchanged) ---
     const backgroundMusic = document.getElementById('backgroundMusic');
     backgroundMusic.loop = true;
-    backgroundMusic.addEventListener('ended', function() {
-      this.currentTime = 0;
-      this.play();
-    }, false);
-    window.addEventListener('load', function() {
-      backgroundMusic.play().catch(function(error) {
-        console.log("Audio autoplay was prevented. User interaction needed.");
-      });
-    });
-    document.addEventListener('click', function() {
-      if (backgroundMusic.paused) {
-        backgroundMusic.play();
-      }
-    });
+    backgroundMusic.addEventListener('ended', function() { this.currentTime = 0; this.play(); }, false);
+    window.addEventListener('load', () => { backgroundMusic.play().catch(e => console.log("Autoplay prevented.")); });
+    document.addEventListener('click', () => { if (backgroundMusic.paused) backgroundMusic.play(); });
 
-    // --- DATA AND CONSTANTS (Unchanged) ---
+    // --- CONFIGURATION & CONSTANTS ---
+    const CHARS_PER_PAGE = 300; // Tweak this value to change text amount per page
     const characterNames = ["KEL", "HERO", "MARI", "KEL", "AUBREY", "BASIL"];
     const commentPositions = [
-      { top: "10%", left: "50%" },
-      { top: "40%", left: "69%" },
-      { top: "70%", left: "50%" },
-      { top: "70%", left: "30%" },
-      { top: "40%", left: "23%" },
-      { top: "10%", left: "30%" }
+      { top: "10%", left: "50%" }, { top: "40%", left: "69%" }, { top: "70%", left: "50%" },
+      { top: "70%", left: "30%" }, { top: "40%", left: "23%" }, { top: "10%", left: "30%" }
     ];
     const commentGifs = [
       "kelbackflip.gif", "herogun.gif", "mari2.gif",
       "kelbroken.gif", "aubrey.gif", "basil.gif"
     ];
     
-    // --- STATE MANAGEMENT (Slightly modified) ---
-    let allPosts = []; // Will hold all data from JSON
+    // --- STATE MANAGEMENT ---
+    let allPosts = [];
     let currentPostIndex = 0;
     let currentCommentIndex = 0;
-    let state = "ready";
+    let currentPostPage = 0; // NEW: Tracks current page of the post
+    let currentCommentPage = 0; // NEW: Tracks current page of the comment
+    let state = "ready"; // Can be: ready, postInProgress, commentInProgress
     let typingInProgress = false;
     
     const container = document.getElementById("container");
-    const bigOmori = document.getElementById("bigOmori");
     const postSelector = document.getElementById("postSelector");
     
-    let postBubbleElement = null;
-
-    // --- NEW: DATA LOADING AND INITIALIZATION ---
+    // --- DATA LOADING & INITIALIZATION ---
     document.addEventListener('DOMContentLoaded', () => {
       fetch('omori_posts.json')
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Network response was not ok ' + response.statusText);
-          }
-          return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
-          // Process raw data into the simpler format used by the display functions
-          allPosts = data.map(post => {
-              // Combine title and selftext for the main post content
-              const postContent = `${post.title}\n\n${post.selftext || ''}`.trim();
-              
-              // Flatten all comments and sub-comments (if any) into a single array of strings
-              // For now, it just takes top-level comments as per your example.
-              const comments = post.comments.map(comment => comment.body);
-
-              return { post: postContent, comments: comments };
-          });
-          
+          allPosts = data.map(post => ({
+              post: `${post.title}\n\n${post.selftext || ''}`.trim(),
+              comments: post.comments.map(comment => comment.body)
+          }));
           populatePostSelector();
-          console.log("Successfully loaded and processed " + allPosts.length + " posts.");
         })
         .catch(error => {
-          console.error('Error loading or parsing JSON:', error);
+          console.error('Error loading JSON:', error);
           postSelector.innerHTML = '<option>Error loading posts.</option>';
         });
     });
 
-    // --- NEW: Function to populate the dropdown selector ---
     function populatePostSelector() {
-      postSelector.innerHTML = ''; // Clear "Loading..." message
+      postSelector.innerHTML = '';
       allPosts.forEach((postData, index) => {
         const option = document.createElement('option');
         option.value = index;
-        // Truncate long titles for better display
         const title = postData.post.split('\n\n')[0];
         option.textContent = title.length > 80 ? title.substring(0, 80) + '...' : title;
         postSelector.appendChild(option);
       });
     }
 
-    // --- NEW: Event listener for the selector ---
     postSelector.addEventListener('change', (event) => {
       currentPostIndex = parseInt(event.target.value, 10);
-      resetContainer(); // Clear the screen
-      state = 'ready';    // Set state to ready for the next click
-      console.log(`Switched to post index: ${currentPostIndex}`);
+      resetForNewPost();
     });
     
-    // --- DISPLAY FUNCTIONS (Mostly Unchanged) ---
+    // --- DISPLAY FUNCTIONS (Modified for Pagination) ---
     
     function typeText(element, text, index = 0, callback) {
       if (index < text.length) {
         typingInProgress = true;
         element.textContent = text.substring(0, index + 1);
-        setTimeout(() => typeText(element, text, index + 1, callback), 20); // Slightly faster typing
+        setTimeout(() => typeText(element, text, index + 1, callback), 10); // MODIFIED: Faster typing
       } else {
         typingInProgress = false;
         if (callback) callback();
@@ -289,8 +260,20 @@
     }
     
     function showPost() {
+      // Clear any previous post bubble
+      const existingBubble = document.querySelector('.bubble');
+      if (existingBubble) container.removeChild(existingBubble);
+
       const currentPost = allPosts[currentPostIndex];
-      postBubbleElement = document.createElement("div");
+      const start = currentPostPage * CHARS_PER_PAGE;
+      let textToShow = currentPost.post.substring(start, start + CHARS_PER_PAGE);
+
+      // Check if there's more text to show on the next page
+      if (start + CHARS_PER_PAGE < currentPost.post.length) {
+        textToShow += "... (click to continue)";
+      }
+
+      const postBubbleElement = document.createElement("div");
       postBubbleElement.classList.add("bubble");
       postBubbleElement.style.top = "calc(30% - 120px)";
       postBubbleElement.style.left = "50%";
@@ -306,21 +289,31 @@
       postBubbleElement.appendChild(textElement);
       
       container.appendChild(postBubbleElement);
-      
-      typeText(textElement, currentPost.post);
+      typeText(textElement, textToShow);
     }
     
-    function addComment(commentText) {
+    function addComment() {
+      const currentPost = allPosts[currentPostIndex];
+      const commentText = currentPost.comments[currentCommentIndex];
+
+      const start = currentCommentPage * CHARS_PER_PAGE;
+      let textToShow = commentText.substring(start, start + CHARS_PER_PAGE);
+
+      if (start + CHARS_PER_PAGE < commentText.length) {
+          textToShow += "... (click to continue)";
+      }
+
+      // Clear the specific comment we might be re-drawing
+      const positionIndex = currentCommentIndex % commentPositions.length;
+      const existingCommentContainer = document.querySelector(`.comment-container[data-position-index='${positionIndex}']`);
+      if (existingCommentContainer) container.removeChild(existingCommentContainer);
+
       const commentContainer = document.createElement("div");
       commentContainer.classList.add("comment-container");
-      
-      const positionIndex = currentCommentIndex % commentPositions.length;
+      commentContainer.dataset.positionIndex = positionIndex; // For easy selection later
 
-      if (positionIndex >= 3) {
-        commentContainer.classList.add("left", "slide-left");
-      } else {
-        commentContainer.classList.add("slide-right");
-      }
+      if (positionIndex >= 3) commentContainer.classList.add("left", "slide-left");
+      else commentContainer.classList.add("slide-right");
     
       const pos = commentPositions[positionIndex];
       commentContainer.style.top = pos.top;
@@ -348,62 +341,75 @@
       commentContainer.appendChild(commentBubble);
       container.appendChild(commentContainer);
       
-      typeText(textElement, commentText);
-      
-      currentCommentIndex++;
+      typeText(textElement, textToShow);
     }
     
     function resetContainer() {
-      // If there are more than 6 comments, we don't remove them all, just the bubble
-      // This function should clear everything except the main Omori character
       const children = Array.from(container.children);
       children.forEach(child => {
-        if (child.id !== "bigOmori") {
-          container.removeChild(child);
-        }
+        if (child.id !== "bigOmori") container.removeChild(child);
       });
-      currentCommentIndex = 0; // Reset comment index for the new post
-      if (postBubbleElement) postBubbleElement = null;
+    }
+
+    function resetForNewPost() {
+        resetContainer();
+        state = 'ready';
+        currentPostPage = 0;
+        currentCommentIndex = 0;
+        currentCommentPage = 0;
     }
     
-    // --- MAIN CLICK HANDLER (Slightly modified to use `allPosts`) ---
+    // --- MAIN CLICK HANDLER (Rewritten for Pagination) ---
     container.addEventListener("click", function(){
-      if (typingInProgress || allPosts.length === 0) {
-        return; // Don't do anything if typing or if data hasn't loaded
-      }
+      if (typingInProgress || allPosts.length === 0) return;
       
-      if (state === "ready") {
-        showPost();
-        state = "postDisplayed";
-      } else if (state === "postDisplayed") {
-        if (postBubbleElement) {
-          container.removeChild(postBubbleElement);
-          postBubbleElement = null;
-        }
-        
-        // Before showing comments, clear previous comments if any
-        resetContainer();
+      const currentPostData = allPosts[currentPostIndex];
 
-        const currentPost = allPosts[currentPostIndex];
-        if (currentPost.comments.length > 0) {
-          addComment(currentPost.comments[0]);
-          state = "commentInProgress";
+      if (state === "ready") {
+        currentPostPage = 0;
+        showPost();
+        state = "postInProgress";
+
+      } else if (state === "postInProgress") {
+        const hasMorePostText = (currentPostPage + 1) * CHARS_PER_PAGE < currentPostData.post.length;
+        if (hasMorePostText) {
+          currentPostPage++;
+          showPost();
         } else {
-          // No comments, stay ready for the next post selection
-          state = "ready";
+          // Post finished, move to comments
+          resetContainer();
+          if (currentPostData.comments.length > 0) {
+            currentCommentIndex = 0;
+            currentCommentPage = 0;
+            addComment();
+            state = "commentInProgress";
+          } else {
+            // No comments, go back to ready state
+            state = "ready";
+          }
         }
       } else if (state === "commentInProgress") {
-        const currentPost = allPosts[currentPostIndex];
-        if (currentCommentIndex < currentPost.comments.length) {
-          // If we have shown 6 comments, clear them before showing the next batch
-          if (currentCommentIndex > 0 && currentCommentIndex % 6 === 0) {
-              resetContainer();
-          }
-          addComment(currentPost.comments[currentCommentIndex]);
+        const currentCommentText = currentPostData.comments[currentCommentIndex];
+        const hasMoreCommentText = (currentCommentPage + 1) * CHARS_PER_PAGE < currentCommentText.length;
+        
+        if (hasMoreCommentText) {
+          currentCommentPage++;
+          addComment();
         } else {
-          // All comments shown for this post, reset the view
-          resetContainer();
-          state = "ready";
+          // Current comment finished, move to next comment
+          currentCommentIndex++;
+          currentCommentPage = 0;
+
+          if (currentCommentIndex < currentPostData.comments.length) {
+            // If we've shown 6 comments, clear the screen for the next batch
+            if (currentCommentIndex > 0 && currentCommentIndex % 6 === 0) {
+              resetContainer();
+            }
+            addComment();
+          } else {
+            // All comments finished for this post
+            resetForNewPost();
+          }
         }
       }
     });
