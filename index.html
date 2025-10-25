@@ -40,10 +40,10 @@
       max-width: 80%;
     }
 
-    /* --- MODIFIED: Styles for UI Controls --- */
+    /* --- MODIFIED: Styles for UI Controls (bottom right) --- */
     #controls-container {
       position: fixed;
-      bottom: 20px; /* CHANGED from top to bottom */
+      bottom: 20px; /* Changed from top */
       right: 20px;
       z-index: 1000;
       display: flex;
@@ -97,7 +97,6 @@
       overflow: hidden;
       box-sizing: border-box;
       overflow-wrap: break-word;
-      position: relative; /* ADDED: This is the fix for the character name */
     }
     
     .comment-container {
@@ -156,7 +155,6 @@
       overflow: hidden;
       box-sizing: border-box;
       overflow-wrap: break-word;
-      position: relative; /* ADDED: This is the fix for the character name */
     }
     
     .comment-container:not(.left) .comment-bubble {
@@ -169,8 +167,7 @@
     
     .character-name {
       position: absolute;
-      top: -30px;
-      left: 0;
+      /* top is relative to parent, position is set in JS */
       background: #000000;
       border: 2px solid #ffffff;
       padding: 2px 8px;
@@ -178,6 +175,18 @@
       color: white;
       text-transform: uppercase;
       font-weight: bold;
+      z-index: 12; /* Make sure it's on top */
+    }
+
+    /* --- FIXED: Correctly position the character name relative to the bubble --- */
+    .comment-container:not(.left) .character-name {
+      left: 210px;
+      top: -30px;
+    }
+
+    .comment-container.left .character-name {
+      right: 210px;
+      top: -30px;
     }
     
     .typing-text {
@@ -188,7 +197,7 @@
 </head>
 <body>
   <audio id="backgroundMusic" autoplay loop preload="auto">
-    <source src="soundtrack.mpmp3" type="audio/mpeg">
+    <source src="soundtrack.mp3" type="audio/mp3">
     Your browser does not support the audio element.
   </audio>
 
@@ -213,7 +222,6 @@
     const backgroundMusic = document.getElementById('backgroundMusic');
     const musicToggle = document.getElementById('music-toggle');
     const ttsToggle = document.getElementById('tts-toggle');
-
     let isMusicPlaying = true;
     let isTtsEnabled = false;
 
@@ -232,12 +240,8 @@
     ttsToggle.addEventListener('click', (e) => {
         e.stopPropagation();
         isTtsEnabled = !isTtsEnabled;
-        if (isTtsEnabled) {
-            ttsToggle.src = 'images/text_to_speech_on.png';
-        } else {
-            ttsToggle.src = 'images/text_to_speech_off.png';
-            window.speechSynthesis.cancel();
-        }
+        ttsToggle.src = isTtsEnabled ? 'images/text_to_speech_on.png' : 'images/text_to_speech_off.png';
+        if (!isTtsEnabled) window.speechSynthesis.cancel();
     });
     
     backgroundMusic.loop = true;
@@ -287,10 +291,7 @@
           });
           populatePostSelector();
         })
-        .catch(error => {
-          console.error('Error loading JSON:', error);
-          postSelector.innerHTML = '<option>Error loading posts.</option>';
-        });
+        .catch(error => console.error('Error loading JSON:', error));
     });
 
     function populatePostSelector() {
@@ -310,10 +311,8 @@
     });
     
     // --- DISPLAY FUNCTIONS ---
-
     function speakText(text) {
         if (!isTtsEnabled) return;
-        
         window.speechSynthesis.cancel();
         const textToSpeak = text.replace("... (click to continue)", "");
         const utterance = new SpeechSynthesisUtterance(textToSpeak);
@@ -339,10 +338,7 @@
       const currentPost = allPosts[currentPostIndex];
       const start = currentPostPage * POST_CHARS_PER_PAGE;
       let textToShow = currentPost.post.substring(start, start + POST_CHARS_PER_PAGE);
-
-      if (start + POST_CHARS_PER_PAGE < currentPost.post.length) {
-        textToShow += "... (click to continue)";
-      }
+      if (start + POST_CHARS_PER_PAGE < currentPost.post.length) textToShow += "... (click to continue)";
 
       speakText(textToShow);
 
@@ -355,6 +351,8 @@
       const nameLabel = document.createElement("div");
       nameLabel.classList.add("character-name");
       nameLabel.textContent = "OMORI";
+      nameLabel.style.top = "-30px";
+      nameLabel.style.left = "0px";
       postBubbleElement.appendChild(nameLabel);
       
       const textElement = document.createElement("div");
@@ -368,13 +366,9 @@
     function addComment() {
       const currentPost = allPosts[currentPostIndex];
       const commentText = currentPost.comments[currentCommentIndex];
-
       const start = currentCommentPage * COMMENT_CHARS_PER_PAGE;
       let textToShow = commentText.substring(start, start + COMMENT_CHARS_PER_PAGE);
-
-      if (start + COMMENT_CHARS_PER_PAGE < commentText.length) {
-          textToShow += "... (click to continue)";
-      }
+      if (start + COMMENT_CHARS_PER_PAGE < commentText.length) textToShow += "... (click to continue)";
 
       speakText(textToShow);
 
@@ -402,17 +396,18 @@
       const commentBubble = document.createElement("div");
       commentBubble.classList.add("comment-bubble");
       
-      const nameLabel = document.createElement("div");
-      nameLabel.classList.add("character-name");
-      nameLabel.textContent = characterNames[gifIndex];
-      commentBubble.appendChild(nameLabel);
-      
       const textElement = document.createElement("div");
       textElement.classList.add("typing-text");
       commentBubble.appendChild(textElement);
+
+      // --- FIXED: Create name label separately and append to container ---
+      const nameLabel = document.createElement("div");
+      nameLabel.classList.add("character-name");
+      nameLabel.textContent = characterNames[gifIndex];
       
       commentContainer.appendChild(commentImg);
       commentContainer.appendChild(commentBubble);
+      commentContainer.appendChild(nameLabel); // Append name label to the main container
       container.appendChild(commentContainer);
       
       typeText(textElement, textToShow);
@@ -420,9 +415,7 @@
     
     function resetContainer() {
       const children = Array.from(container.children);
-      children.forEach(child => {
-        if (child.id !== "bigOmori") container.removeChild(child);
-      });
+      children.forEach(child => { if (child.id !== "bigOmori") container.removeChild(child); });
       window.speechSynthesis.cancel();
     }
 
@@ -444,7 +437,6 @@
         currentPostPage = 0;
         showPost();
         state = "postInProgress";
-
       } else if (state === "postInProgress") {
         const hasMorePostText = (currentPostPage + 1) * POST_CHARS_PER_PAGE < currentPostData.post.length;
         if (hasMorePostText) {
@@ -464,18 +456,14 @@
       } else if (state === "commentInProgress") {
         const currentCommentText = currentPostData.comments[currentCommentIndex];
         const hasMoreCommentText = (currentCommentPage + 1) * COMMENT_CHARS_PER_PAGE < currentCommentText.length;
-        
         if (hasMoreCommentText) {
           currentCommentPage++;
           addComment();
         } else {
           currentCommentIndex++;
           currentCommentPage = 0;
-
           if (currentCommentIndex < currentPostData.comments.length) {
-            if (currentCommentIndex > 0 && currentCommentIndex % 6 === 0) {
-              resetContainer();
-            }
+            if (currentCommentIndex > 0 && currentCommentIndex % 6 === 0) resetContainer();
             addComment();
           } else {
             resetForNewPost();
