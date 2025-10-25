@@ -40,10 +40,9 @@
       max-width: 80%;
     }
 
-    /* --- MODIFIED: Styles for UI Controls (bottom right) --- */
     #controls-container {
       position: fixed;
-      bottom: 20px; /* Changed from top */
+      bottom: 20px;
       right: 20px;
       z-index: 1000;
       display: flex;
@@ -132,13 +131,8 @@
       z-index: 11;
     }
     
-    .comment-container:not(.left) .comment-img {
-      left: 0;
-    }
-    
-    .comment-container.left .comment-img {
-      right: 0;
-    }
+    .comment-container:not(.left) .comment-img { left: 0; }
+    .comment-container.left .comment-img { right: 0; }
     
     .comment-bubble {
       position: absolute;
@@ -157,17 +151,11 @@
       overflow-wrap: break-word;
     }
     
-    .comment-container:not(.left) .comment-bubble {
-      left: 210px;
-    }
-    
-    .comment-container.left .comment-bubble {
-      right: 210px;
-    }
+    .comment-container:not(.left) .comment-bubble { left: 210px; }
+    .comment-container.left .comment-bubble { right: 210px; }
     
     .character-name {
       position: absolute;
-      /* top is relative to parent, position is set in JS */
       background: #000000;
       border: 2px solid #ffffff;
       padding: 2px 8px;
@@ -175,19 +163,11 @@
       color: white;
       text-transform: uppercase;
       font-weight: bold;
-      z-index: 12; /* Make sure it's on top */
+      z-index: 12;
     }
 
-    /* --- FIXED: Correctly position the character name relative to the bubble --- */
-    .comment-container:not(.left) .character-name {
-      left: 210px;
-      top: -30px;
-    }
-
-    .comment-container.left .character-name {
-      right: 210px;
-      top: -30px;
-    }
+    .comment-container:not(.left) .character-name { left: 210px; top: -30px; }
+    .comment-container.left .character-name { right: 210px; top: -30px; }
     
     .typing-text {
       display: inline;
@@ -198,7 +178,6 @@
 <body>
   <audio id="backgroundMusic" autoplay loop preload="auto">
     <source src="soundtrack.mp3" type="audio/mp3">
-    Your browser does not support the audio element.
   </audio>
 
   <div id="controls-container">
@@ -218,7 +197,6 @@
   </div>
 
   <script>
-    // --- AUDIO & TTS HANDLING ---
     const backgroundMusic = document.getElementById('backgroundMusic');
     const musicToggle = document.getElementById('music-toggle');
     const ttsToggle = document.getElementById('tts-toggle');
@@ -253,7 +231,6 @@
         }); 
     });
     
-    // --- CONFIGURATION & CONSTANTS ---
     const POST_CHARS_PER_PAGE = 450;
     const COMMENT_CHARS_PER_PAGE = 250; 
     const characterNames = ["KEL", "HERO", "MARI", "KEL", "AUBREY", "BASIL"];
@@ -266,7 +243,6 @@
       "kelbroken.gif", "aubrey.gif", "basil.gif"
     ];
     
-    // --- STATE MANAGEMENT ---
     let allPosts = [];
     let currentPostIndex = 0;
     let currentCommentIndex = 0;
@@ -278,7 +254,6 @@
     const container = document.getElementById("container");
     const postSelector = document.getElementById("postSelector");
     
-    // --- DATA LOADING & INITIALIZATION ---
     document.addEventListener('DOMContentLoaded', () => {
       fetch('omori_posts.json')
         .then(response => response.json())
@@ -310,7 +285,6 @@
       resetForNewPost();
     });
     
-    // --- DISPLAY FUNCTIONS ---
     function speakText(text) {
         if (!isTtsEnabled) return;
         window.speechSynthesis.cancel();
@@ -332,8 +306,11 @@
     }
     
     function showPost() {
+      // --- FIXED: Remove previous post elements explicitly ---
       const existingBubble = document.querySelector('.bubble');
       if (existingBubble) container.removeChild(existingBubble);
+      const existingName = document.querySelector('.main-post-name');
+      if (existingName) container.removeChild(existingName);
 
       const currentPost = allPosts[currentPostIndex];
       const start = currentPostPage * POST_CHARS_PER_PAGE;
@@ -342,24 +319,27 @@
 
       speakText(textToShow);
 
+      // Create and position the text bubble
       const postBubbleElement = document.createElement("div");
       postBubbleElement.classList.add("bubble");
       postBubbleElement.style.top = "calc(30% - 120px)";
       postBubbleElement.style.left = "50%";
       postBubbleElement.style.transform = "translateX(-50%)";
-      
+      container.appendChild(postBubbleElement);
+
+      // --- FIXED: Create and position the name tag as a SIBLING ---
       const nameLabel = document.createElement("div");
-      nameLabel.classList.add("character-name");
+      nameLabel.classList.add("character-name", "main-post-name"); // Added class for easy removal
       nameLabel.textContent = "OMORI";
-      nameLabel.style.top = "-30px";
-      nameLabel.style.left = "0px";
-      postBubbleElement.appendChild(nameLabel);
+      nameLabel.style.position = 'absolute';
+      nameLabel.style.top = 'calc(30% - 150px)'; // 30px above the bubble's top
+      nameLabel.style.left = 'calc(50% - 150px)'; // Aligned with bubble's left edge
+      container.appendChild(nameLabel);
       
       const textElement = document.createElement("div");
       textElement.classList.add("typing-text");
-      postBubbleElement.appendChild(textElement);
+      postBubbleElement.appendChild(textElement); // Text still goes inside the bubble
       
-      container.appendChild(postBubbleElement);
       typeText(textElement, textToShow);
     }
     
@@ -400,14 +380,13 @@
       textElement.classList.add("typing-text");
       commentBubble.appendChild(textElement);
 
-      // --- FIXED: Create name label separately and append to container ---
       const nameLabel = document.createElement("div");
       nameLabel.classList.add("character-name");
       nameLabel.textContent = characterNames[gifIndex];
       
       commentContainer.appendChild(commentImg);
       commentContainer.appendChild(commentBubble);
-      commentContainer.appendChild(nameLabel); // Append name label to the main container
+      commentContainer.appendChild(nameLabel);
       container.appendChild(commentContainer);
       
       typeText(textElement, textToShow);
@@ -427,7 +406,6 @@
         currentCommentPage = 0;
     }
     
-    // --- MAIN CLICK HANDLER ---
     container.addEventListener("click", function(){
       if (typingInProgress || allPosts.length === 0) return;
       
