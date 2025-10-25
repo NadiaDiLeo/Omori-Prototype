@@ -40,10 +40,10 @@
       max-width: 80%;
     }
 
-    /* --- NEW: Styles for UI Controls --- */
+    /* --- MODIFIED: Styles for UI Controls --- */
     #controls-container {
       position: fixed;
-      top: 20px;
+      bottom: 20px; /* CHANGED from top to bottom */
       right: 20px;
       z-index: 1000;
       display: flex;
@@ -97,6 +97,7 @@
       overflow: hidden;
       box-sizing: border-box;
       overflow-wrap: break-word;
+      position: relative; /* ADDED: This is the fix for the character name */
     }
     
     .comment-container {
@@ -155,6 +156,7 @@
       overflow: hidden;
       box-sizing: border-box;
       overflow-wrap: break-word;
+      position: relative; /* ADDED: This is the fix for the character name */
     }
     
     .comment-container:not(.left) .comment-bubble {
@@ -186,11 +188,10 @@
 </head>
 <body>
   <audio id="backgroundMusic" autoplay loop preload="auto">
-    <source src="soundtrack.mp3" type="audio/mp3">
+    <source src="soundtrack.mpmp3" type="audio/mpeg">
     Your browser does not support the audio element.
   </audio>
 
-  <!-- NEW: UI Controls -->
   <div id="controls-container">
     <img src="images/music.png" id="music-toggle" class="control-icon" alt="Toggle Music">
     <img src="images/text_to_speech_off.png" id="tts-toggle" class="control-icon" alt="Toggle Text to Speech">
@@ -216,9 +217,8 @@
     let isMusicPlaying = true;
     let isTtsEnabled = false;
 
-    // Music control logic
     musicToggle.addEventListener('click', (e) => {
-        e.stopPropagation(); // Prevents click from triggering container's click event
+        e.stopPropagation();
         isMusicPlaying = !isMusicPlaying;
         if (isMusicPlaying) {
             backgroundMusic.play();
@@ -229,7 +229,6 @@
         }
     });
 
-    // TTS control logic
     ttsToggle.addEventListener('click', (e) => {
         e.stopPropagation();
         isTtsEnabled = !isTtsEnabled;
@@ -237,11 +236,10 @@
             ttsToggle.src = 'images/text_to_speech_on.png';
         } else {
             ttsToggle.src = 'images/text_to_speech_off.png';
-            window.speechSynthesis.cancel(); // Stop any speech if turned off
+            window.speechSynthesis.cancel();
         }
     });
     
-    // Initial audio setup
     backgroundMusic.loop = true;
     window.addEventListener('load', () => { 
         backgroundMusic.play().catch(e => {
@@ -316,7 +314,7 @@
     function speakText(text) {
         if (!isTtsEnabled) return;
         
-        window.speechSynthesis.cancel(); // Stop previous speech
+        window.speechSynthesis.cancel();
         const textToSpeak = text.replace("... (click to continue)", "");
         const utterance = new SpeechSynthesisUtterance(textToSpeak);
         utterance.lang = 'en-US';
@@ -404,7 +402,6 @@
       const commentBubble = document.createElement("div");
       commentBubble.classList.add("comment-bubble");
       
-      // RESTORED: Add the character name to the comment bubble
       const nameLabel = document.createElement("div");
       nameLabel.classList.add("character-name");
       nameLabel.textContent = characterNames[gifIndex];
@@ -426,7 +423,7 @@
       children.forEach(child => {
         if (child.id !== "bigOmori") container.removeChild(child);
       });
-      window.speechSynthesis.cancel(); // Stop any speaking text when clearing the screen
+      window.speechSynthesis.cancel();
     }
 
     function resetForNewPost() {
