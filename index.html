@@ -39,6 +39,26 @@
       min-width: 400px;
       max-width: 80%;
     }
+
+    /* --- NEW: Styles for UI Controls --- */
+    #controls-container {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      gap: 15px;
+    }
+
+    .control-icon {
+      width: 48px;
+      height: 48px;
+      cursor: pointer;
+      border: 2px solid white;
+      background-color: black;
+      border-radius: 5px;
+      padding: 5px;
+    }
     
     #container {
       position: relative;
@@ -73,7 +93,7 @@
       text-align: left;
       width: 300px;
       height: 200px;
-      font-size: 1.5em;
+      font-size: 1.1em;
       overflow: hidden;
       box-sizing: border-box;
       overflow-wrap: break-word;
@@ -131,7 +151,7 @@
       text-align: left;
       width: 250px;
       height: 150px;
-      font-size: 1.5em;
+      font-size: 1.1em;
       overflow: hidden;
       box-sizing: border-box;
       overflow-wrap: break-word;
@@ -169,6 +189,12 @@
     <source src="soundtrack.mp3" type="audio/mp3">
     Your browser does not support the audio element.
   </audio>
+
+  <!-- NEW: UI Controls -->
+  <div id="controls-container">
+    <img src="images/music.png" id="music-toggle" class="control-icon" alt="Toggle Music">
+    <img src="images/text_to_speech_off.png" id="tts-toggle" class="control-icon" alt="Toggle Text to Speech">
+  </div>
   
   <div id="selector-container">
     <label for="postSelector">Choose a Post:</label>
@@ -182,17 +208,52 @@
   </div>
 
   <script>
-    // --- AUDIO HANDLING (Unchanged) ---
+    // --- AUDIO & TTS HANDLING ---
     const backgroundMusic = document.getElementById('backgroundMusic');
-    backgroundMusic.loop = true;
-    backgroundMusic.addEventListener('ended', function() { this.currentTime = 0; this.play(); }, false);
-    window.addEventListener('load', () => { backgroundMusic.play().catch(e => console.log("Autoplay prevented.")); });
-    document.addEventListener('click', () => { if (backgroundMusic.paused) backgroundMusic.play(); });
+    const musicToggle = document.getElementById('music-toggle');
+    const ttsToggle = document.getElementById('tts-toggle');
 
+    let isMusicPlaying = true;
+    let isTtsEnabled = false;
+
+    // Music control logic
+    musicToggle.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevents click from triggering container's click event
+        isMusicPlaying = !isMusicPlaying;
+        if (isMusicPlaying) {
+            backgroundMusic.play();
+            musicToggle.src = 'images/music.png';
+        } else {
+            backgroundMusic.pause();
+            musicToggle.src = 'images/no_music.png';
+        }
+    });
+
+    // TTS control logic
+    ttsToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        isTtsEnabled = !isTtsEnabled;
+        if (isTtsEnabled) {
+            ttsToggle.src = 'images/text_to_speech_on.png';
+        } else {
+            ttsToggle.src = 'images/text_to_speech_off.png';
+            window.speechSynthesis.cancel(); // Stop any speech if turned off
+        }
+    });
+    
+    // Initial audio setup
+    backgroundMusic.loop = true;
+    window.addEventListener('load', () => { 
+        backgroundMusic.play().catch(e => {
+            isMusicPlaying = false;
+            musicToggle.src = 'images/no_music.png';
+            console.log("Autoplay prevented.");
+        }); 
+    });
+    
     // --- CONFIGURATION & CONSTANTS ---
-    // MODIFIED: Separate character limits for post and comments
-    const POST_CHARS_PER_PAGE = 100;
-    const COMMENT_CHARS_PER_PAGE = 70; 
+    const POST_CHARS_PER_PAGE = 450;
+    const COMMENT_CHARS_PER_PAGE = 250; 
     const characterNames = ["KEL", "HERO", "MARI", "KEL", "AUBREY", "BASIL"];
     const commentPositions = [
       { top: "10%", left: "50%" }, { top: "40%", left: "69%" }, { top: "70%", left: "50%" },
@@ -221,12 +282,9 @@
         .then(response => response.json())
         .then(data => {
           allPosts = data.map(post => {
-            // MODIFIED: Clean text by removing extra newlines
             const cleanText = (text) => text.replace(/\n{2,}/g, '\n').trim();
-            
             const postContent = cleanText(`${post.title}\n\n${post.selftext || ''}`);
             const comments = post.comments.map(comment => cleanText(comment.body));
-
             return { post: postContent, comments: comments };
           });
           populatePostSelector();
@@ -253,13 +311,23 @@
       resetForNewPost();
     });
     
-    // --- DISPLAY FUNCTIONS (Modified for Pagination) ---
+    // --- DISPLAY FUNCTIONS ---
+
+    function speakText(text) {
+        if (!isTtsEnabled) return;
+        
+        window.speechSynthesis.cancel(); // Stop previous speech
+        const textToSpeak = text.replace("... (click to continue)", "");
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        utterance.lang = 'en-US';
+        window.speechSynthesis.speak(utterance);
+    }
     
     function typeText(element, text, index = 0, callback) {
       if (index < text.length) {
         typingInProgress = true;
         element.textContent = text.substring(0, index + 1);
-        setTimeout(() => typeText(element, text, index + 1, callback), 5);
+        setTimeout(() => typeText(element, text, index + 1, callback), 10);
       } else {
         typingInProgress = false;
         if (callback) callback();
@@ -278,9 +346,11 @@
         textToShow += "... (click to continue)";
       }
 
+      speakText(textToShow);
+
       const postBubbleElement = document.createElement("div");
       postBubbleElement.classList.add("bubble");
-      postBubbleElement.style.top = "calc(20% - 120px)";
+      postBubbleElement.style.top = "calc(30% - 120px)";
       postBubbleElement.style.left = "50%";
       postBubbleElement.style.transform = "translateX(-50%)";
       
@@ -308,6 +378,8 @@
           textToShow += "... (click to continue)";
       }
 
+      speakText(textToShow);
+
       const positionIndex = currentCommentIndex % commentPositions.length;
       const existingCommentContainer = document.querySelector(`.comment-container[data-position-index='${positionIndex}']`);
       if (existingCommentContainer) container.removeChild(existingCommentContainer);
@@ -332,6 +404,7 @@
       const commentBubble = document.createElement("div");
       commentBubble.classList.add("comment-bubble");
       
+      // RESTORED: Add the character name to the comment bubble
       const nameLabel = document.createElement("div");
       nameLabel.classList.add("character-name");
       nameLabel.textContent = characterNames[gifIndex];
@@ -353,6 +426,7 @@
       children.forEach(child => {
         if (child.id !== "bigOmori") container.removeChild(child);
       });
+      window.speechSynthesis.cancel(); // Stop any speaking text when clearing the screen
     }
 
     function resetForNewPost() {
@@ -363,7 +437,7 @@
         currentCommentPage = 0;
     }
     
-    // --- MAIN CLICK HANDLER (Rewritten for Pagination) ---
+    // --- MAIN CLICK HANDLER ---
     container.addEventListener("click", function(){
       if (typingInProgress || allPosts.length === 0) return;
       
