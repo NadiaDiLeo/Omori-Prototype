@@ -10,8 +10,8 @@ KEYWORDS = ["depression", "community", "anxiety", "therapy", "hikikomori", "heal
 # Initialize Reddit API client
 def initialize_reddit():
     return praw.Reddit(
-        client_id="6lPh2MCEhdAbqMv4P-vGdg",
-        client_secret="JN8xgvGMIckyNj0_HL0Gk5QRyjGEbw",
+        client_id="your_client_id",
+        client_secret="your_client_secret",
         user_agent="script:omori_data_extractor:v1.0 (by u/YOUR_USERNAME)",
         username="YOUR_USERNAME",  # Optional, only if using authenticated features
         password="YOUR_PASSWORD"   # Optional, only if using authenticated features
